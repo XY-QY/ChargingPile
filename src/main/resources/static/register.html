@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 充电桩管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="auth-wrap">
+    <div class="auth-box">
+        <h2>⚡ 注册新账号</h2>
+        <p class="sub">注册后即可使用充电桩服务</p>
+        <div class="field">
+            <label>用户名</label>
+            <input type="text" id="username" placeholder="登录用用户名">
+        </div>
+        <div class="field">
+            <label>昵称</label>
+            <input type="text" id="nickname" placeholder="显示昵称（可选）">
+        </div>
+        <div class="field">
+            <label>手机号</label>
+            <input type="text" id="phone" placeholder="联系电话（可选）">
+        </div>
+        <div class="field">
+            <label>密码</label>
+            <input type="password" id="password" placeholder="设置密码">
+        </div>
+        <div class="field">
+            <label>确认密码</label>
+            <input type="password" id="password2" placeholder="再次输入密码">
+        </div>
+        <button class="btn btn-primary" onclick="doRegister()">注 册</button>
+        <div class="switch">已有账号？<a href="/login.html">返回登录</a></div>
+    </div>
+</div>
+<script src="/js/common.js"></script>
+<script>
+async function doRegister() {
+    const username = document.getElementById('username').value.trim();
+    const nickname = document.getElementById('nickname').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const password = document.getElementById('password').value;
+    const password2 = document.getElementById('password2').value;
+    if (!username || !password) { showToast('用户名和密码不能为空'); return; }
+    if (password !== password2) { showToast('两次密码输入不一致'); return; }
+    if (password.length < 6) { showToast('密码长度至少6位'); return; }
+    const r = await API.post('/api/auth/register', { username, password, nickname, phone });
+    if (r.code === 0) {
+        showToast('注册成功，请登录');
+        setTimeout(() => location.href = '/login.html', 800);
+    } else {
+        showToast(r.message);
+    }
+}
+</script>
+</body>
+</html>

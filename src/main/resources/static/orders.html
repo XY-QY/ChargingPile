@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充电记录 - 充电桩管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="logo">⚡ 充电桩<span>管理系统</span></div>
+    <div class="nav-links">
+        <a href="/index.html">充电站分布</a>
+        <a href="/wallet.html">我的钱包</a>
+        <a href="/orders.html">充电记录</a>
+    </div>
+    <div class="nav-user"></div>
+</nav>
+
+<div class="container">
+    <div class="card">
+        <h3>我的充电记录</h3>
+        <table>
+            <thead>
+                <tr><th>充电桩</th><th>区域</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>计费时长</th><th>电量(kWh)</th><th>费用</th></tr>
+            </thead>
+            <tbody id="orderBody"></tbody>
+        </table>
+        <div class="empty" id="orderEmpty" style="display:none;">暂无充电记录</div>
+    </div>
+</div>
+
+<div class="footer">郑州大学《软件方法与过程》课程 · 充电桩管理系统 Scrum 项目</div>
+
+<script src="/js/common.js"></script>
+<script>
+(async function () {
+    await initNav('orders');
+    const r = await API.get('/api/charge/my');
+    if (r.code !== 0) return;
+    const list = r.data || [];
+    document.getElementById('orderEmpty').style.display = list.length ? 'none' : 'block';
+    const statusMap = { CHARGING: '充电中', FINISHED: '已完成', CANCELLED: '已取消' };
+    document.getElementById('orderBody').innerHTML = list.map(o => `
+        <tr>
+            <td>${o.pileName}</td>
+            <td>${o.area}</td>
+            <td>${o.startTime}</td>
+            <td>${o.actualEndTime || o.endTime || '-'}</td>
+            <td>
+                ${o.status === 'CHARGING'
+                    ? '<span class="badge badge-using">充电中</span>'
+                    : '<span class="badge badge-idle">已完成</span>'}
+            </td>
+            <td>${o.durationHours ?? '-'} 小时</td>
+            <td>${o.kwh ?? '-'}</td>
+            <td style="font-weight:600;color:#d9534f;">${o.amount != null ? fmtMoney(o.amount) : '-'}</td>
+        </tr>`).join('');
+})();
+</script>
+</body>
+</html>

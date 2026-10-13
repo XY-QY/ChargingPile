@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充电桩分布 - 充电桩管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<!-- 顶部导航 -->
+<nav class="navbar">
+    <div class="logo">⚡ 充电桩<span>管理系统</span></div>
+    <div class="nav-links">
+        <a href="/index.html">充电站分布</a>
+        <a href="/wallet.html">我的钱包</a>
+        <a href="/orders.html">充电记录</a>
+    </div>
+    <div class="nav-user"></div>
+</nav>
+
+<div class="container">
+    <!-- 充电中横幅 -->
+    <div id="chargingBanner" style="display:none;">
+        <div class="charging-banner">
+            <div class="info">
+                正在充电：<b id="cbPileName"></b>（<span id="cbArea"></span>）<br>
+                预计结束：<span id="cbEndTime"></span>
+            </div>
+            <div class="timer">剩余 <span id="cbRemain">--</span> 分钟</div>
+            <button class="btn btn-danger" onclick="stopCharging()">结束充电</button>
+        </div>
+    </div>
+
+    <!-- 区域统计条 -->
+    <div class="card">
+        <div class="area-stats" id="areaStats"></div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="card">
+        <div class="toolbar">
+            <button class="btn btn-primary" id="locateBtn" onclick="locate()">📍 定位最近充电桩</button>
+            <span id="locateInfo" style="font-size:13px;color:#888;"></span>
+            <span style="flex:1"></span>
+            <label style="font-size:14px;color:#555;">区域筛选：</label>
+            <select id="areaSelect" onchange="onAreaChange()">
+                <option value="">全部区域</option>
+                <option value="柳园">柳园</option>
+                <option value="荷园">荷园</option>
+                <option value="菊园">菊园</option>
+                <option value="松园">松园</option>
+            </select>
+            <button class="btn btn-outline" onclick="loadPiles()">查询</button>
+        </div>
+    </div>
+
+    <!-- 充电桩列表 -->
+    <div class="card">
+        <h3>充电桩分布 <span id="pileCount" style="font-size:13px;color:#888;font-weight:normal;"></span></h3>
+        <div class="pile-grid" id="pileGrid"></div>
+        <div class="empty" id="pileEmpty" style="display:none;">暂无充电桩数据</div>
+    </div>
+</div>
+
+<!-- 充电模态框 -->
+<div class="modal-mask" id="chargeModal">
+    <div class="modal">
+        <h3>开始充电</h3>
+        <p id="cmPileInfo" style="font-size:14px;color:#555;margin-bottom:12px;"></p>
+        <div class="field">
+            <label>选择充电时长：</label>
+            <div class="duration-opts" id="durationOpts">
+                <div class="opt" data-min="30">30分钟</div>
+                <div class="opt" data-min="60">1小时</div>
+                <div class="opt selected" data-min="120">2小时</div>
+                <div class="opt" data-min="240">4小时</div>
+            </div>
+        </div>
+        <div class="est-line" id="cmEst">预估费用：--</div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="confirmCharge()">确认充电</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">郑州大学《软件方法与过程》课程 · 充电桩管理系统 Scrum 项目</div>
+
+<script src="/js/common.js"></script>
+<script>
+let currentPiles = [];
+let currentUser = null;
+let selectedPileId = null;
+let selectedMinutes = 120;
+let myPos = null;
+let chargeTimer = null;
+
+/* 初始化 */
+(async function () {
+    currentUser = await initNav('index');
+    initAreaStats();
+    buildDurationOpts();
+    // 页面加载自动尝试定位
+    locate();
+})();
+
+/* 区域统计条 */
+async function initAreaStats() {
+    const r = await API.get('/api/piles/list');
+    if (r.code !== 0) return;
+    currentPiles = r.data;
+    const stats = {};
+    const areas = ['柳园', '荷园', '菊园', '松园'];
+    areas.forEach(a => stats[a] = { total: 0, idle: 0, using: 0 });
+    r.data.forEach(p => {
+        if (stats[p.area]) {
+            stats[p.area].total++;
+            p.status === 1 ? stats[p.area].using++ : stats[p.area].idle++;
+        }
+    });
+    document.getElementById('areaStats').innerHTML = areas.map(a =>
+        `<div class="area-item ${a === '柳园' ? 'active' : ''}" onclick="filterArea('${a}')">
+            <div class="area-name">${a}</div>
+            <div class="area-num">共${stats[a].total}台 · 空闲${stats[a].idle} · 使用中${stats[a].using}</div>
+        </div>`).join('');
+    renderPiles();
+}
+
+function filterArea(area) {
+    document.getElementById('areaSelect').value = area;
+    onAreaChange();
+    document.querySelectorAll('.area-item').forEach(el => {
+        el.classList.toggle('active', el.querySelector('.area-name').textContent === area);
+    });
+}
+
+function onAreaChange() {
+    const area = document.getElementById('areaSelect').value;
+    document.querySelectorAll('.area-item').forEach(el => {
+        el.classList.toggle('active', el.querySelector('.area-name').textContent === area);
+    });
+    loadPiles();
+}
+
+/* 定位 */
+function locate() {
+    document.getElementById('locateInfo').textContent = '正在获取定位...';
+    document.getElementById('locateBtn').disabled = true;
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            myPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+            document.getElementById('locateInfo').textContent =
+                `已定位（${myPos.lat.toFixed(5)}, ${myPos.lng.toFixed(5)}）· 已按距离就近排序`;
+            document.getElementById('locateBtn').disabled = false;
+            loadPiles();
+        }, err => {
+            document.getElementById('locateInfo').textContent = '定位失败：' + (err.message || '未知错误') + '，已按默认顺序展示';
+            document.getElementById('locateBtn').disabled = false;
+            myPos = null;
+            loadPiles();
+        }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+    } else {
+        document.getElementById('locateInfo').textContent = '浏览器不支持定位';
+        document.getElementById('locateBtn').disabled = false;
+        loadPiles();
+    }
+}
+
+/* 加载充电桩 */
+async function loadPiles() {
+    const area = document.getElementById('areaSelect').value;
+    let url = '/api/piles/list?';
+    if (area) url += 'area=' + encodeURIComponent(area) + '&';
+    if (myPos) url += 'lat=' + myPos.lat + '&lng=' + myPos.lng;
+    const r = await API.get(url);
+    if (r.code !== 0) { showToast(r.message); return; }
+    currentPiles = r.data;
+    renderPiles();
+    loadChargingBanner();
+}
+
+/* 渲染桩卡片 */
+function renderPiles() {
+    const grid = document.getElementById('pileGrid');
+    const empty = document.getElementById('pileEmpty');
+    document.getElementById('pileCount').textContent = `（共 ${currentPiles.length} 台）`;
+    if (currentPiles.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+    grid.innerHTML = currentPiles.map(p => {
+        const using = p.status === 1;
+        const statusHtml = using
+            ? `<span class="badge badge-using">使用中 · 剩余约 ${p.remainMinutes} 分钟</span>`
+            : `<span class="badge badge-idle">空闲</span>`;
+        const distHtml = p.distanceKm != null ? `<br>距你约 ${p.distanceKm} 公里` : '';
+        return `
+        <div class="pile-card ${using ? 'using' : ''}">
+            <h4>${p.name} <span class="badge badge-area">${p.area}</span></h4>
+            <div class="pile-meta">${p.address}${distHtml}</div>
+            <div class="pile-status">${statusHtml}</div>
+            <div class="pile-meta">功率 ${p.power} kW · 电价 ${p.price} 元/度</div>
+            <div class="pile-actions">
+                ${using
+                    ? '<button class="btn btn-sm" disabled>充电中</button>'
+                    : `<button class="btn btn-sm btn-primary" onclick="openChargeModal(${p.id})">⚡ 立即充电</button>`}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* 充电时长选项 */
+function buildDurationOpts() {
+    document.getElementById('durationOpts').innerHTML = '';
+    [[30,'30分钟'],[60,'1小时'],[120,'2小时'],[240,'4小时']].forEach(([min, label]) => {
+        const el = document.createElement('div');
+        el.className = 'opt' + (min === 120 ? ' selected' : '');
+        el.dataset.min = min;
+        el.textContent = label;
+        el.onclick = () => {
+            selectedMinutes = min;
+            document.querySelectorAll('#durationOpts .opt').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+            updateEst();
+        };
+        document.getElementById('durationOpts').appendChild(el);
+    });
+}
+
+/* 打开充电模态框 */
+function openChargeModal(pileId) {
+    const pile = currentPiles.find(p => p.id === pileId);
+    if (!pile) return;
+    if (currentUser && Number(currentUser.balance) <= 0) {
+        showToast('余额为0，请先到钱包充值');
+        setTimeout(() => location.href = '/wallet.html', 800);
+        return;
+    }
+    selectedPileId = pileId;
+    document.getElementById('cmPileInfo').textContent =
+        `${pile.name}（${pile.area}）· ${pile.power} kW · ${pile.price} 元/度`;
+    updateEst();
+    document.getElementById('chargeModal').classList.add('show');
+}
+
+/* 更新预估费用（时长向上取整 × 功率 × 单价） */
+function updateEst() {
+    const pile = currentPiles.find(p => p.id === selectedPileId);
+    if (!pile) return;
+    const hours = Math.ceil(selectedMinutes / 60);
+    const est = hours * Number(pile.power) * Number(pile.price);
+    document.getElementById('cmEst').textContent =
+        `预估费用：${selectedMinutes}分钟 → 按${hours}小时计费 → ${hours}小时 × ${pile.power}kW × ${pile.price}元 = ${est.toFixed(2)} 元`;
+}
+
+function closeModal() {
+    document.getElementById('chargeModal').classList.remove('show');
+}
+
+/* 确认充电 */
+async function confirmCharge() {
+    const r = await API.post('/api/charge/start', { pileId: selectedPileId, minutes: selectedMinutes });
+    if (r.code === 0) {
+        showToast('充电开始！');
+        closeModal();
+        loadPiles();
+    } else {
+        showToast(r.message);
+        if (r.message && r.message.indexOf('余额不足') >= 0) {
+            setTimeout(() => location.href = '/wallet.html', 1500);
+        }
+    }
+}
+
+/* 充电中横幅 */
+async function loadChargingBanner() {
+    const r = await API.get('/api/charge/current');
+    const banner = document.getElementById('chargingBanner');
+    if (r.code === 0 && r.data) {
+        banner.style.display = 'block';
+        document.getElementById('cbPileName').textContent = r.data.pileName;
+        document.getElementById('cbArea').textContent = r.data.area;
+        document.getElementById('cbEndTime').textContent = r.data.endTime;
+        updateTimer(r.data.remainMinutes);
+        if (chargeTimer) clearInterval(chargeTimer);
+        chargeTimer = setInterval(async () => {
+            const r2 = await API.get('/api/charge/current');
+            if (r2.code === 0 && r2.data) updateTimer(r2.data.remainMinutes);
+            else { clearInterval(chargeTimer); banner.style.display = 'none'; loadPiles(); }
+        }, 60000);
+    } else {
+        banner.style.display = 'none';
+        if (chargeTimer) clearInterval(chargeTimer);
+    }
+}
+
+function updateTimer(remain) {
+    document.getElementById('cbRemain').textContent = remain;
+}
+
+/* 结束充电 */
+async function stopCharging() {
+    const r = await API.get('/api/charge/current');
+    if (r.code === 0 && r.data) {
+        const r2 = await API.post('/api/charge/stop', { sessionId: r.data.id });
+        if (r2.code === 0) {
+            showToast('充电结束，费用已结算');
+            location.reload();
+        } else {
+            showToast(r2.message);
+        }
+    }
+}
+</script>
+</body>
+</html>

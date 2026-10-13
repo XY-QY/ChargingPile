@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的钱包 - 充电桩管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="logo">⚡ 充电桩<span>管理系统</span></div>
+    <div class="nav-links">
+        <a href="/index.html">充电站分布</a>
+        <a href="/wallet.html">我的钱包</a>
+        <a href="/orders.html">充电记录</a>
+    </div>
+    <div class="nav-user"></div>
+</nav>
+
+<div class="container">
+    <div class="card" style="text-align:center;padding:36px;">
+        <h3 style="color:#888;font-weight:normal;">当前余额</h3>
+        <div id="balance" style="font-size:44px;font-weight:700;color:#0d7a3f;margin:14px 0;">¥0.00</div>
+        <button class="btn btn-primary" onclick="openRechargeModal()">💳 充值</button>
+    </div>
+
+    <div class="card">
+        <h3>钱包流水</h3>
+        <table id="txTable">
+            <thead>
+                <tr><th>时间</th><th>类型</th><th>金额</th><th>余额</th><th>说明</th></tr>
+            </thead>
+            <tbody id="txBody"></tbody>
+        </table>
+        <div class="empty" id="txEmpty" style="display:none;">暂无流水记录</div>
+    </div>
+</div>
+
+<!-- 充值模态框 -->
+<div class="modal-mask" id="rechargeModal">
+    <div class="modal">
+        <h3>钱包充值</h3>
+        <div class="field">
+            <label>充值金额：</label>
+            <input type="number" id="rechargeAmount" placeholder="输入充值金额（元）" min="1" step="1">
+        </div>
+        <div class="duration-opts" style="margin-top:8px;">
+            <div class="opt" onclick="quickRecharge(50)">¥50</div>
+            <div class="opt" onclick="quickRecharge(100)">¥100</div>
+            <div class="opt" onclick="quickRecharge(200)">¥200</div>
+            <div class="opt" onclick="quickRecharge(500)">¥500</div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="document.getElementById('rechargeModal').classList.remove('show')">取消</button>
+            <button class="btn btn-primary" onclick="doRecharge()">确认充值</button>
+        </div>
+    </div>
+</div>
+
+<div class="footer">郑州大学《软件方法与过程》课程 · 充电桩管理系统 Scrum 项目</div>
+
+<script src="/js/common.js"></script>
+<script>
+(async function () {
+    const user = await initNav('wallet');
+    if (user) document.getElementById('balance').textContent = fmtMoney(user.balance);
+    loadTransactions();
+})();
+
+function openRechargeModal() {
+    document.getElementById('rechargeModal').classList.add('show');
+}
+
+function quickRecharge(v) {
+    document.getElementById('rechargeAmount').value = v;
+}
+
+async function doRecharge() {
+    const amount = document.getElementById('rechargeAmount').value;
+    if (!amount || Number(amount) <= 0) { showToast('请输入有效金额'); return; }
+    const r = await API.post('/api/wallet/recharge', { amount: Number(amount) });
+    if (r.code === 0) {
+        showToast('充值成功');
+        document.getElementById('rechargeModal').classList.remove('show');
+        const me = await getMe(false);
+        if (me) document.getElementById('balance').textContent = fmtMoney(me.balance);
+        loadTransactions();
+    } else {
+        showToast(r.message);
+    }
+}
+
+async function loadTransactions() {
+    const r = await API.get('/api/wallet/transactions');
+    if (r.code !== 0) return;
+    const txs = r.data || [];
+    const body = document.getElementById('txBody');
+    document.getElementById('txEmpty').style.display = txs.length ? 'none' : 'block';
+    const typeMap = { RECHARGE: '充值', CHARGE: '充电消费', REFUND: '退款' };
+    body.innerHTML = txs.map(t => `
+        <tr>
+            <td>${t.createTime}</td>
+            <td>${typeMap[t.type] || t.type}</td>
+            <td style="color:${t.amount > 0 ? '#0d7a3f' : '#d9534f'};font-weight:600;">
+                ${t.amount > 0 ? '+' : ''}${fmtMoney(t.amount)}</td>
+            <td>${fmtMoney(t.balanceAfter)}</td>
+            <td>${t.description || '-'}</td>
+        </tr>`).join('');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: ChargingPile
+  datasource:
+    url: jdbc:opengauss://localhost:5432/ChargingPile
+    username: opengauss
+    password: ${DB_PASSWORD:Gauss@123}
+    driver-class-name: org.opengauss.Driver
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  mvc:
+    static-path-pattern: /**
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto

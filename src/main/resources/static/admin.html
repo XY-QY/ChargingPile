@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - 充电桩管理系统</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/echarts.min.js"></script>
+</head>
+<body>
+<nav class="navbar">
+    <div class="logo">⚡ 充电桩<span>管理系统</span></div>
+    <div class="nav-links">
+        <a href="/index.html">充电站分布</a>
+        <a href="/wallet.html">我的钱包</a>
+        <a href="/orders.html">充电记录</a>
+        <a href="/admin.html">管理后台</a>
+    </div>
+    <div class="nav-user"></div>
+</nav>
+
+<div class="container">
+    <div class="card">
+        <h3>📊 数据总览</h3>
+        <div class="stat-cards" id="statCards"></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+            <h3>四大区域充电桩分布</h3>
+            <div id="areaChart" style="height:300px;"></div>
+        </div>
+        <div class="card">
+            <h3>近7天充电收入</h3>
+            <div id="incomeChart" style="height:300px;"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>区域收入明细</h3>
+        <table>
+            <thead><tr><th>区域</th><th>桩总数</th><th>空闲</th><th>使用中</th><th>累计收入</th></tr></thead>
+            <tbody id="areaBody"></tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3 style="display:flex;align-items:center;gap:12px;">
+            明细数据
+            <span style="font-size:13px;font-weight:normal;color:#888;">切换到：</span>
+            <select id="tabSelect" onchange="switchTab()" style="padding:6px 10px;">
+                <option value="sessions">充电订单</option>
+                <option value="users">用户列表</option>
+                <option value="transactions">钱包流水</option>
+            </select>
+        </h3>
+        <div id="detailWrap"></div>
+    </div>
+</div>
+
+<div class="footer">郑州大学《软件方法与过程》课程 · 充电桩管理系统 Scrum 项目</div>
+
+<script src="/js/common.js"></script>
+<script>
+let stats = null;
+
+(async function () {
+    const user = await initNav('admin');
+    if (!user) return;
+    if (user.role !== 'ADMIN') {
+        showToast('无权限，仅管理员可访问');
+        setTimeout(() => location.href = '/index.html', 1200);
+        return;
+    }
+    await loadStats();
+    switchTab();
+})();
+
+async function loadStats() {
+    const r = await API.get('/api/admin/stats');
+    if (r.code !== 0) { showToast(r.message); return; }
+    stats = r.data;
+    renderStatCards();
+    renderCharts();
+    renderAreaTable();
+}
+
+function renderStatCards() {
+    const items = [
+        ['充电桩总数', stats.totalPiles, '台'],
+        ['空闲中', stats.idlePiles, '台'],
+        ['使用中', stats.usingPiles, '台'],
+        ['注册用户', stats.totalUsers, '人'],
+        ['累计订单', stats.totalSessions, '单'],
+        ['今日订单', stats.todaySessions, '单'],
+        ['累计收入', '¥' + Number(stats.totalIncome).toFixed(2), ''],
+        ['累计电量', Number(stats.totalKwh).toFixed(1), 'kWh']
+    ];
+    document.getElementById('statCards').innerHTML = items.map(([label, num, unit]) =>
+        `<div class="stat-card"><div class="num">${num}${unit}</div><div class="label">${label}</div></div>`
+    ).join('');
+}
+
+function renderCharts() {
+    // 区域柱状图
+    const areaChart = echarts.init(document.getElementById('areaChart'));
+    areaChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['总数', '空闲', '使用中'] },
+        xAxis: { type: 'category', data: stats.areaStats.map(a => a.area) },
+        yAxis: { type: 'value', minInterval: 1 },
+        series: [
+            { name: '总数', type: 'bar', data: stats.areaStats.map(a => a.total), itemStyle: { color: '#4a9e73' } },
+            { name: '空闲', type: 'bar', data: stats.areaStats.map(a => a.idle), itemStyle: { color: '#8fd0ab' } },
+            { name: '使用中', type: 'bar', data: stats.areaStats.map(a => a.using), itemStyle: { color: '#e67e22' } }
+        ]
+    });
+
+    // 近7天收入折线图
+    const incomeChart = echarts.init(document.getElementById('incomeChart'));
+    incomeChart.setOption({
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'category', data: stats.dailyIncome.map(d => d.date) },
+        yAxis: { type: 'value' },
+        series: [{
+            name: '收入(元)', type: 'line', smooth: true,
+            data: stats.dailyIncome.map(d => Number(d.income).toFixed(2)),
+            areaStyle: { opacity: 0.15 }, itemStyle: { color: '#149d55' }, lineStyle: { color: '#149d55', width: 3 }
+        }]
+    });
+
+    window.addEventListener('resize', () => { areaChart.resize(); incomeChart.resize(); });
+}
+
+function renderAreaTable() {
+    document.getElementById('areaBody').innerHTML = stats.areaStats.map(a => `
+        <tr>
+            <td style="font-weight:600;">${a.area}</td>
+            <td>${a.total}</td>
+            <td>${a.idle}</td>
+            <td>${a.using}</td>
+            <td style="font-weight:600;color:#0d7a3f;">¥${Number(a.income).toFixed(2)}</td>
+        </tr>`).join('');
+}
+
+function switchTab() {
+    const tab = document.getElementById('tabSelect').value;
+    if (tab === 'sessions') loadSessions();
+    else if (tab === 'users') loadUsers();
+    else loadTransactions();
+}
+
+async function loadSessions() {
+    const r = await API.get('/api/admin/sessions');
+    if (r.code !== 0) { showToast(r.message); return; }
+    const list = r.data || [];
+    document.getElementById('detailWrap').innerHTML = `
+        <table>
+            <thead><tr><th>订单号</th><th>用户</th><th>充电桩</th><th>区域</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>电量</th><th>费用</th></tr></thead>
+            <tbody>${list.map(o => `
+                <tr>
+                    <td>#${o.id}</td><td>${o.username}</td><td>${o.pileName}</td><td>${o.area}</td>
+                    <td>${o.startTime}</td><td>${o.actualEndTime || '-'}</td>
+                    <td>${o.status === 'FINISHED' ? '<span class="badge badge-idle">已完成</span>' : '<span class="badge badge-using">充电中</span>'}</td>
+                    <td>${o.kwh ?? '-'}</td><td style="font-weight:600;">${o.amount != null ? '¥' + Number(o.amount).toFixed(2) : '-'}</td>
+                </tr>`).join('')}</tbody>
+        </table>
+        ${list.length ? '' : '<div class="empty">暂无数据</div>'}`;
+}
+
+async function loadUsers() {
+    const r = await API.get('/api/admin/users');
+    if (r.code !== 0) { showToast(r.message); return; }
+    const list = r.data || [];
+    document.getElementById('detailWrap').innerHTML = `
+        <table>
+            <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>手机号</th><th>角色</th><th>余额</th><th>注册时间</th></tr></thead>
+            <tbody>${list.map(u => `
+                <tr>
+                    <td>${u.id}</td><td>${u.username}</td><td>${u.nickname || '-'}</td><td>${u.phone || '-'}</td>
+                    <td>${u.role === 'ADMIN' ? '<span class="badge badge-area">管理员</span>' : '<span class="badge badge-idle">用户</span>'}</td>
+                    <td style="font-weight:600;">¥${Number(u.balance).toFixed(2)}</td><td>${u.createTime}</td>
+                </tr>`).join('')}</tbody>
+        </table>
+        ${list.length ? '' : '<div class="empty">暂无数据</div>'}`;
+}
+
+async function loadTransactions() {
+    const r = await API.get('/api/admin/transactions');
+    if (r.code !== 0) { showToast(r.message); return; }
+    const list = r.data || [];
+    const typeMap = { RECHARGE: '充值', CHARGE: '充电消费', REFUND: '退款' };
+    document.getElementById('detailWrap').innerHTML = `
+        <table>
+            <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>金额</th><th>余额</th><th>说明</th><th>时间</th></tr></thead>
+            <tbody>${list.map(t => `
+                <tr>
+                    <td>${t.id}</td><td>${t.username}</td>
+                    <td>${typeMap[t.type] || t.type}</td>
+                    <td style="color:${t.amount > 0 ? '#0d7a3f' : '#d9534f'};font-weight:600;">${t.amount > 0 ? '+' : ''}¥${Number(t.amount).toFixed(2)}</td>
+                    <td>¥${Number(t.balanceAfter).toFixed(2)}</td><td>${t.description || '-'}</td><td>${t.createTime}</td>
+                </tr>`).join('')}</tbody>
+        </table>
+        ${list.length ? '' : '<div class="empty">暂无数据</div>'}`;
+}
+</script>
+</body>
+</html>

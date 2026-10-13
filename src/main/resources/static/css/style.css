@@ -1,0 +1,165 @@
+/* 充电桩管理系统 全局样式 */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #f0f4f0;
+    color: #333;
+    min-height: 100vh;
+}
+
+/* 顶部导航 */
+.navbar {
+    background: linear-gradient(135deg, #0d7a3f, #149d55);
+    color: #fff;
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.navbar .logo { font-size: 20px; font-weight: 700; }
+.navbar .logo span { color: #c9f7d8; }
+.nav-links { display: flex; align-items: center; gap: 8px; }
+.nav-links a {
+    color: #fff; text-decoration: none; padding: 8px 14px; border-radius: 6px;
+    font-size: 14px; transition: background .2s;
+}
+.nav-links a:hover, .nav-links a.active { background: rgba(255,255,255,.18); }
+.nav-user { font-size: 14px; display: flex; align-items: center; gap: 12px; }
+.nav-user .uname { color: #eafff2; }
+.nav-user a { color: #fff; text-decoration: none; font-size: 13px; opacity: .85; }
+.nav-user a:hover { opacity: 1; }
+
+.container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+
+/* 卡片 */
+.card {
+    background: #fff; border-radius: 12px; padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06); margin-bottom: 20px;
+}
+.card h3 { font-size: 16px; margin-bottom: 14px; color: #0d7a3f; }
+
+/* 工具条 */
+.toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn {
+    padding: 9px 18px; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 14px; transition: all .2s;
+}
+.btn-primary { background: #149d55; color: #fff; }
+.btn-primary:hover { background: #0d7a3f; }
+.btn-outline { background: #fff; color: #149d55; border: 1.5px solid #149d55; }
+.btn-outline:hover { background: #eafff2; }
+.btn-danger { background: #d9534f; color: #fff; }
+.btn-danger:hover { background: #c9302c; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+select, input {
+    padding: 9px 12px; border: 1.5px solid #d5e8dd; border-radius: 8px;
+    font-size: 14px; outline: none; background: #fff;
+}
+select:focus, input:focus { border-color: #149d55; }
+
+/* 充电桩卡片网格 */
+.pile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.pile-card {
+    background: #fff; border-radius: 12px; padding: 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    border-left: 5px solid #149d55;
+    transition: transform .2s;
+}
+.pile-card:hover { transform: translateY(-3px); }
+.pile-card.using { border-left-color: #e67e22; }
+.pile-card h4 { font-size: 16px; margin-bottom: 8px; }
+.pile-meta { font-size: 13px; color: #666; line-height: 1.9; }
+.badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+}
+.badge-idle { background: #e6f7ec; color: #0d7a3f; }
+.badge-using { background: #fdf0e0; color: #e67e22; }
+.badge-area { background: #e8f0fe; color: #2b6cb0; }
+.pile-status { margin: 10px 0; }
+.pile-actions { margin-top: 10px; }
+
+/* 区域统计条 */
+.area-stats { display: flex; gap: 12px; flex-wrap: wrap; }
+.area-item {
+    flex: 1; min-width: 130px; background: #fff; border-radius: 10px;
+    padding: 12px 16px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    border-top: 3px solid #149d55; cursor: pointer;
+}
+.area-item.active { border-top-color: #e67e22; background: #fffaf2; }
+.area-item .area-name { font-size: 14px; font-weight: 600; }
+.area-item .area-num { font-size: 13px; color: #888; margin-top: 4px; }
+
+/* 表格 */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eef2ee; }
+th { background: #f7faf8; color: #0d7a3f; font-weight: 600; }
+tr:hover td { background: #f9fcf9; }
+
+/* 登录注册 */
+.auth-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #0d7a3f, #149d55); }
+.auth-box { background: #fff; border-radius: 16px; padding: 40px; width: 380px; box-shadow: 0 10px 40px rgba(0,0,0,.2); }
+.auth-box h2 { text-align: center; margin-bottom: 8px; color: #0d7a3f; }
+.auth-box .sub { text-align: center; color: #999; font-size: 13px; margin-bottom: 24px; }
+.auth-box .field { margin-bottom: 16px; }
+.auth-box .field label { display: block; font-size: 13px; margin-bottom: 6px; color: #555; }
+.auth-box .field input { width: 100%; }
+.auth-box .btn { width: 100%; padding: 11px; font-size: 15px; }
+.auth-box .switch { text-align: center; margin-top: 16px; font-size: 13px; color: #888; }
+.auth-box .switch a { color: #149d55; text-decoration: none; }
+
+/* 统计卡片 */
+.stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.stat-card { background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+.stat-card .num { font-size: 26px; font-weight: 700; color: #0d7a3f; }
+.stat-card .label { font-size: 13px; color: #888; margin-top: 4px; }
+
+/* 模态框 */
+.modal-mask {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none;
+    align-items: center; justify-content: center; z-index: 200;
+}
+.modal-mask.show { display: flex; }
+.modal { background: #fff; border-radius: 14px; padding: 26px; width: 400px; max-width: 92vw; }
+.modal h3 { margin-bottom: 14px; color: #0d7a3f; }
+.modal .field { margin-bottom: 12px; }
+.modal .field label { display: block; font-size: 13px; margin-bottom: 6px; color: #555; }
+.duration-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+.duration-opts .opt {
+    padding: 8px 14px; border: 1.5px solid #d5e8dd; border-radius: 8px; cursor: pointer;
+    font-size: 14px; background: #fff;
+}
+.duration-opts .opt.selected { border-color: #149d55; background: #eafff2; color: #0d7a3f; font-weight: 600; }
+.est-line { background: #f5faf7; padding: 10px 12px; border-radius: 8px; font-size: 13px; color: #0d7a3f; margin: 10px 0; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+
+/* 提示消息 */
+.toast {
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.8); color: #fff; padding: 12px 24px; border-radius: 8px;
+    font-size: 14px; z-index: 300; display: none;
+}
+.toast.show { display: block; animation: fadein .3s; }
+@keyframes fadein { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; } }
+
+/* 充电中横幅 */
+.charging-banner {
+    background: linear-gradient(135deg, #e67e22, #f39c12); color: #fff;
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+}
+.charging-banner .info { font-size: 14px; line-height: 1.8; }
+.charging-banner .timer { font-size: 26px; font-weight: 700; }
+
+/* 空状态 */
+.empty { text-align: center; color: #aaa; padding: 40px 0; font-size: 14px; }
+
+/* 页脚 */
+.footer { text-align: center; color: #aaa; font-size: 12px; padding: 24px 0; }
